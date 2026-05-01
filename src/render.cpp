@@ -88,38 +88,37 @@ bool format_pilot_row(const PilotEntry& pilot, uint32_t worst_lap_ms,
     return true;
 }
 
-// ─── TFT-dependent functions (only for target build) ─────────────
+// ─── LCD-dependent functions (only for target build) ─────────────
 
 #ifndef NATIVE_BUILD
 
-void draw_header(TFT_eSPI& tft, RenderState& state) {
+void draw_header(LGFX& lcd, RenderState& state) {
     const char* headers[] = { "Pos", "Nombre", "Ultima", "Mejor", "Vlts", "Gap" };
 
-    tft.setTextSize(1);
-    tft.setTextFont(2);
+    lcd.setTextSize(1);
+    lcd.setFont(&lgfx::fonts::Font2);
 
     for (uint8_t c = 0; c < NUM_COLS; ++c) {
-        tft.fillRect(COL_X[c], 0, COL_W[c], HEADER_H, COLOR_BLACK);
-        tft.setTextColor(COLOR_DARKGREY, COLOR_BLACK);
-        tft.setCursor(COL_X[c] + 2, 8);
-        tft.print(headers[c]);
+        lcd.fillRect(COL_X[c], 0, COL_W[c], HEADER_H, COLOR_BLACK);
+        lcd.setTextColor(COLOR_DARKGREY, COLOR_BLACK);
+        lcd.setCursor(COL_X[c] + 2, 8);
+        lcd.print(headers[c]);
     }
 
-    // Draw separator line
-    tft.drawFastHLine(0, HEADER_H - 1, SCREEN_W, COLOR_DARKGREY);
+    lcd.drawFastHLine(0, HEADER_H - 1, SCREEN_W, COLOR_DARKGREY);
     state.header_drawn = true;
 }
 
-void render_dashboard(TFT_eSPI& tft, RenderState& state,
+void render_dashboard(LGFX& lcd, RenderState& state,
                       const PilotEntry pilots[], uint8_t count) {
     if (!state.header_drawn) {
-        draw_header(tft, state);
+        draw_header(lcd, state);
     }
 
     uint32_t worst_lap = find_worst_lap(pilots, count);
 
-    tft.setTextSize(1);
-    tft.setTextFont(2);
+    lcd.setTextSize(1);
+    lcd.setFont(&lgfx::fonts::Font2);
 
     for (uint8_t row = 0; row < count; ++row) {
         CellCache new_cells[NUM_COLS];
@@ -129,29 +128,23 @@ void render_dashboard(TFT_eSPI& tft, RenderState& state,
         uint16_t y = HEADER_H + (row * ROW_H);
 
         for (uint8_t col = 0; col < NUM_COLS; ++col) {
-            // Compare with cache — only redraw if changed
             if (std::strcmp(state.cells[row][col].text, new_cells[col].text) != 0 ||
                 state.cells[row][col].fg_color != new_cells[col].fg_color) {
 
-                // Clear cell area
-                tft.fillRect(COL_X[col], y, COL_W[col], ROW_H, COLOR_BLACK);
+                lcd.fillRect(COL_X[col], y, COL_W[col], ROW_H, COLOR_BLACK);
+                lcd.setTextColor(new_cells[col].fg_color, COLOR_BLACK);
+                lcd.setCursor(COL_X[col] + 2, y + 10);
+                lcd.print(new_cells[col].text);
 
-                // Draw new text
-                tft.setTextColor(new_cells[col].fg_color, COLOR_BLACK);
-                tft.setCursor(COL_X[col] + 2, y + 10);
-                tft.print(new_cells[col].text);
-
-                // Update cache
                 std::memcpy(&state.cells[row][col], &new_cells[col], sizeof(CellCache));
             }
         }
     }
 
-    // Clear extra rows if pilot count decreased
     if (count < state.last_pilot_count) {
         for (uint8_t row = count; row < state.last_pilot_count; ++row) {
             uint16_t y = HEADER_H + (row * ROW_H);
-            tft.fillRect(0, y, SCREEN_W, ROW_H, COLOR_BLACK);
+            lcd.fillRect(0, y, SCREEN_W, ROW_H, COLOR_BLACK);
             for (uint8_t col = 0; col < NUM_COLS; ++col) {
                 std::memset(&state.cells[row][col], 0, sizeof(CellCache));
             }

@@ -61,11 +61,11 @@ bool format_pilot_row(const PilotEntry& pilot, uint32_t worst_lap_ms,
 #ifndef NATIVE_BUILD
 } // close namespace for native-only section
 
-#include <TFT_eSPI.h>
+#include "display.h"
 
 namespace render {
-    void draw_header(TFT_eSPI& tft, RenderState& state);
-    void render_dashboard(TFT_eSPI& tft, RenderState& state,
+    void draw_header(LGFX& lcd, RenderState& state);
+    void render_dashboard(LGFX& lcd, RenderState& state,
                           const PilotEntry pilots[], uint8_t count);
 #endif
 
