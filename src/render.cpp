@@ -30,14 +30,14 @@ void format_gap(int32_t gap_ms, char* buf, uint8_t buf_size) {
 }
 
 uint16_t get_position_color(uint8_t position) {
-    return (position == 1) ? COLOR_GREEN : COLOR_WHITE;
+    return (position == 1) ? COLOR_GREEN : COLOR_LGREY;
 }
 
 uint16_t get_last_lap_color(uint32_t last_lap_ms, uint32_t worst_lap_ms) {
     if (last_lap_ms > 0 && worst_lap_ms > 0 && last_lap_ms == worst_lap_ms) {
         return COLOR_RED;
     }
-    return COLOR_WHITE;
+    return COLOR_LGREY;
 }
 
 uint32_t find_worst_lap(const PilotEntry pilots[], uint8_t count) {
@@ -50,40 +50,54 @@ uint32_t find_worst_lap(const PilotEntry pilots[], uint8_t count) {
     return worst;
 }
 
+uint16_t get_gap_color(int32_t current_gap, int32_t prev_gap) {
+    // Leader always green
+    if (current_gap == -1) return COLOR_GREEN;
+    // No previous data yet — neutral
+    if (prev_gap == 0 || prev_gap == -1) return COLOR_LGREY;
+    // Gap decreased (closer to leader) — green (improving)
+    if (current_gap < prev_gap) return COLOR_GREEN;
+    // Gap increased (falling behind) — red (worsening)
+    if (current_gap > prev_gap) return COLOR_RED;
+    // Same gap — neutral
+    return COLOR_LGREY;
+}
+
 bool format_pilot_row(const PilotEntry& pilot, uint32_t worst_lap_ms,
-                      CellCache new_cells[NUM_COLS]) {
-    // Col 0: Position
+                      int32_t prev_gap, CellCache new_cells[NUM_COLS]) {
+    // Col 0: Position — green for leader, light grey for others
     snprintf(new_cells[0].text, 16, "%d", pilot.position);
     new_cells[0].fg_color = get_position_color(pilot.position);
 
-    // Col 1: Name
+    // Col 1: Name — amber for visibility
     snprintf(new_cells[1].text, 16, "%.12s", pilot.name);
-    new_cells[1].fg_color = COLOR_WHITE;
+    new_cells[1].fg_color = COLOR_AMBER;
 
-    // Col 2: Last lap
+    // Col 2: Last lap — red for worst, light grey for normal
     if (pilot.lap_count > 0) {
         format_time(pilot.last_lap_ms, new_cells[2].text, 16);
         new_cells[2].fg_color = get_last_lap_color(pilot.last_lap_ms, worst_lap_ms);
     } else {
         snprintf(new_cells[2].text, 16, "---.---");
-        new_cells[2].fg_color = COLOR_DARKGREY;
+        new_cells[2].fg_color = COLOR_ROW_ALT;
     }
 
-    // Col 3: Best lap
+    // Col 3: Best lap — cyan highlight
     if (pilot.best_lap_ms > 0) {
         format_time(pilot.best_lap_ms, new_cells[3].text, 16);
+        new_cells[3].fg_color = COLOR_BEST_LAP;
     } else {
         snprintf(new_cells[3].text, 16, "---.---");
+        new_cells[3].fg_color = COLOR_ROW_ALT;
     }
-    new_cells[3].fg_color = COLOR_WHITE;
 
-    // Col 4: Lap count
+    // Col 4: Lap count — light grey
     snprintf(new_cells[4].text, 16, "%d", pilot.lap_count);
-    new_cells[4].fg_color = COLOR_WHITE;
+    new_cells[4].fg_color = COLOR_LGREY;
 
-    // Col 5: Gap
+    // Col 5: Gap — colored by delta (green=improving, red=worsening, grey=same)
     format_gap(pilot.gap_ms, new_cells[5].text, 16);
-    new_cells[5].fg_color = COLOR_WHITE;
+    new_cells[5].fg_color = get_gap_color(pilot.gap_ms, prev_gap);
 
     return true;
 }
@@ -93,19 +107,22 @@ bool format_pilot_row(const PilotEntry& pilot, uint32_t worst_lap_ms,
 #ifndef NATIVE_BUILD
 
 void draw_header(LGFX& lcd, RenderState& state) {
-    const char* headers[] = { "Pos", "Nombre", "Ultima", "Mejor", "Vlts", "Gap" };
+    const char* headers[] = { "POS", "PILOT", "LAST", "BEST", "LAPS", "GAP" };
+
+    // Header background bar
+    lcd.fillRect(0, 0, SCREEN_W, HEADER_H, COLOR_HEADER_BG);
 
     lcd.setTextSize(1);
     lcd.setFont(&lgfx::fonts::Font2);
 
     for (uint8_t c = 0; c < NUM_COLS; ++c) {
-        lcd.fillRect(COL_X[c], 0, COL_W[c], HEADER_H, COLOR_BLACK);
-        lcd.setTextColor(COLOR_DARKGREY, COLOR_BLACK);
+        lcd.setTextColor(COLOR_CYAN, COLOR_HEADER_BG);
         lcd.setCursor(COL_X[c] + 2, 8);
         lcd.print(headers[c]);
     }
 
-    lcd.drawFastHLine(0, HEADER_H - 1, SCREEN_W, COLOR_DARKGREY);
+    // Bright separator line under header
+    lcd.drawFastHLine(0, HEADER_H - 1, SCREEN_W, COLOR_CYAN);
     state.header_drawn = true;
 }
 
@@ -123,22 +140,28 @@ void render_dashboard(LGFX& lcd, RenderState& state,
     for (uint8_t row = 0; row < count; ++row) {
         CellCache new_cells[NUM_COLS];
         std::memset(new_cells, 0, sizeof(new_cells));
-        format_pilot_row(pilots[row], worst_lap, new_cells);
+        format_pilot_row(pilots[row], worst_lap, state.prev_gap[row], new_cells);
 
         uint16_t y = HEADER_H + (row * ROW_H);
+
+        // Alternating row background for readability
+        uint16_t row_bg = (row % 2 == 0) ? COLOR_BLACK : COLOR_ROW_ALT;
 
         for (uint8_t col = 0; col < NUM_COLS; ++col) {
             if (std::strcmp(state.cells[row][col].text, new_cells[col].text) != 0 ||
                 state.cells[row][col].fg_color != new_cells[col].fg_color) {
 
-                lcd.fillRect(COL_X[col], y, COL_W[col], ROW_H, COLOR_BLACK);
-                lcd.setTextColor(new_cells[col].fg_color, COLOR_BLACK);
+                lcd.fillRect(COL_X[col], y, COL_W[col], ROW_H, row_bg);
+                lcd.setTextColor(new_cells[col].fg_color, row_bg);
                 lcd.setCursor(COL_X[col] + 2, y + 10);
                 lcd.print(new_cells[col].text);
 
                 std::memcpy(&state.cells[row][col], &new_cells[col], sizeof(CellCache));
             }
         }
+
+        // Store current gap for next comparison
+        state.prev_gap[row] = pilots[row].gap_ms;
     }
 
     if (count < state.last_pilot_count) {

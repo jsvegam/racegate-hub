@@ -20,7 +20,7 @@ TEST(FormatPilotRow, LeaderRowHasGreenPosition) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_STREQ(cells[0].text, "1");
     EXPECT_EQ(cells[0].fg_color, render::COLOR_GREEN);
@@ -31,10 +31,10 @@ TEST(FormatPilotRow, NonLeaderRowHasWhitePosition) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_STREQ(cells[0].text, "3");
-    EXPECT_EQ(cells[0].fg_color, render::COLOR_WHITE);
+    EXPECT_EQ(cells[0].fg_color, render::COLOR_LGREY);
 }
 
 TEST(FormatPilotRow, WorstLapIsRed) {
@@ -42,7 +42,7 @@ TEST(FormatPilotRow, WorstLapIsRed) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_EQ(cells[2].fg_color, render::COLOR_RED);
 }
@@ -52,9 +52,9 @@ TEST(FormatPilotRow, NormalLapIsWhite) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
-    EXPECT_EQ(cells[2].fg_color, render::COLOR_WHITE);
+    EXPECT_EQ(cells[2].fg_color, render::COLOR_LGREY);
 }
 
 TEST(FormatPilotRow, ZeroLapsShowsDashes) {
@@ -62,7 +62,7 @@ TEST(FormatPilotRow, ZeroLapsShowsDashes) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_STREQ(cells[2].text, "---.---");
     EXPECT_STREQ(cells[3].text, "---.---");
@@ -74,7 +74,7 @@ TEST(FormatPilotRow, GapLeaderShowsDashes) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_STREQ(cells[5].text, "---");
 }
@@ -84,7 +84,7 @@ TEST(FormatPilotRow, GapNonLeaderShowsPlus) {
     render::CellCache cells[render::NUM_COLS];
     std::memset(cells, 0, sizeof(cells));
 
-    render::format_pilot_row(pilot, 18000, cells);
+    render::format_pilot_row(pilot, 18000, 0, cells);
 
     EXPECT_STREQ(cells[5].text, "+3.456");
 }
@@ -97,7 +97,7 @@ TEST(PartialUpdate, CacheDetectsChanges) {
     PilotEntry pilot = make_pilot("RAZOR", 1, 12345, 11000, 5, -1, 60000);
     render::CellCache new_cells[render::NUM_COLS];
     std::memset(new_cells, 0, sizeof(new_cells));
-    render::format_pilot_row(pilot, 18000, new_cells);
+    render::format_pilot_row(pilot, 18000, 0, new_cells);
 
     // All cells should differ from initial empty state
     for (uint8_t c = 0; c < render::NUM_COLS; ++c) {
@@ -113,7 +113,7 @@ TEST(PartialUpdate, CacheDetectsChanges) {
     // Same data again — nothing should change
     render::CellCache same_cells[render::NUM_COLS];
     std::memset(same_cells, 0, sizeof(same_cells));
-    render::format_pilot_row(pilot, 18000, same_cells);
+    render::format_pilot_row(pilot, 18000, 0, same_cells);
 
     for (uint8_t c = 0; c < render::NUM_COLS; ++c) {
         bool text_same = std::strcmp(state.cells[0][c].text, same_cells[c].text) == 0;

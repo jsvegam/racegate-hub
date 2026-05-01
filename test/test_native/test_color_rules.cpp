@@ -8,8 +8,8 @@ TEST(ColorRules, LeaderPositionIsGreen) {
 
 TEST(ColorRules, NonLeaderPositionIsWhite) {
     for (uint8_t pos = 2; pos <= 8; ++pos) {
-        EXPECT_EQ(render::get_position_color(pos), render::COLOR_WHITE)
-            << "Position " << (int)pos << " should be white";
+        EXPECT_EQ(render::get_position_color(pos), render::COLOR_LGREY)
+            << "Position " << (int)pos << " should be light grey";
     }
 }
 
@@ -18,11 +18,11 @@ TEST(ColorRules, WorstLapIsRed) {
 }
 
 TEST(ColorRules, NonWorstLapIsWhite) {
-    EXPECT_EQ(render::get_last_lap_color(12000, 18000), render::COLOR_WHITE);
+    EXPECT_EQ(render::get_last_lap_color(12000, 18000), render::COLOR_LGREY);
 }
 
 TEST(ColorRules, ZeroLapTimeIsWhite) {
-    EXPECT_EQ(render::get_last_lap_color(0, 18000), render::COLOR_WHITE);
+    EXPECT_EQ(render::get_last_lap_color(0, 18000), render::COLOR_LGREY);
 }
 
 TEST(ColorRules, FindWorstLapBasic) {

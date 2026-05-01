@@ -4,10 +4,12 @@
 #include "display.h"
 #include "simulation.h"
 #include "render.h"
+#include "ticker.h"
 
 LGFX lcd;
 SimulationEngine simulation;
 render::RenderState render_state;
+ticker::TickerState ticker_state;
 
 void setup() {
     Serial.begin(115200);
@@ -30,6 +32,7 @@ void setup() {
     simulation.init(6);
     render::init_render(render_state);
     render::draw_header(lcd, render_state);
+    ticker::init_ticker(ticker_state);
 
     Serial.println("Init complete. Dashboard running.");
 }
@@ -41,7 +44,13 @@ void loop() {
         PilotEntry pilots[MAX_PILOTS];
         uint8_t count = simulation.get_pilots(pilots, MAX_PILOTS);
         render::render_dashboard(lcd, render_state, pilots, count);
+
+        // Generate race commentary
+        ticker::generate_message(ticker_state, pilots, count);
     }
+
+    // Always update ticker animation (particles need smooth updates)
+    ticker::render_ticker(lcd, ticker_state, millis());
 }
 
 #endif // NATIVE_BUILD

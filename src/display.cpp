@@ -34,6 +34,11 @@ void show_splash_screen(LGFX& lcd) {
     lcd.setFont(&fonts::Font0);
     lcd.drawString("XIAO ESP32-S3 + ILI9488", 240, 210);
 
+    // Creator credit
+    lcd.setTextColor(0x07FF, TFT_BLACK);  // Cyan
+    lcd.setFont(&fonts::Font2);
+    lcd.drawString("created by Verma FPV", 240, 245);
+
     lcd.setTextDatum(top_left);
 }
 
