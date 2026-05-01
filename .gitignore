@@ -18,3 +18,7 @@
 *.bin
 *.hex
 *.map
+
+# Personal notes (not for repo)
+LINKEDIN_POST.md
+COMMUNITY_CONTRIBUTIONS.md
