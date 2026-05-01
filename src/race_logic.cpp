@@ -32,10 +32,20 @@ void calculate_gaps(PilotEntry pilots[], uint8_t count) {
     // Leader (index 0, position 1) gets gap = -1
     pilots[0].gap_ms = -1;
 
-    // Others get gap = their total_time_ms - leader's total_time_ms
+    // Others get gap relative to leader
     uint32_t leader_time = pilots[0].total_time_ms;
+    uint16_t leader_laps = pilots[0].lap_count;
     for (uint8_t i = 1; i < count; ++i) {
-        pilots[i].gap_ms = static_cast<int32_t>(pilots[i].total_time_ms - leader_time);
+        if (pilots[i].lap_count < leader_laps) {
+            // Fewer laps: show lap difference as a large gap indicator
+            // Use a simple formula: (lap_diff * leader_avg_lap) + time_diff
+            uint32_t lap_diff = leader_laps - pilots[i].lap_count;
+            uint32_t avg_lap = (leader_laps > 0) ? (leader_time / leader_laps) : 15000;
+            pilots[i].gap_ms = static_cast<int32_t>(lap_diff * avg_lap);
+        } else {
+            // Same laps: straightforward time difference
+            pilots[i].gap_ms = static_cast<int32_t>(pilots[i].total_time_ms - leader_time);
+        }
     }
 }
 

@@ -12,16 +12,34 @@ bool init_display(TFT_eSPI& tft) {
 
     // Initialize backlight pin
     pinMode(BL_PIN, OUTPUT);
-    digitalWrite(BL_PIN, HIGH);  // Backlight on
+    digitalWrite(BL_PIN, LOW);  // Backlight off during init
+
+    // Configure SPI pins explicitly before TFT init
+    // This prevents crashes when SPI bus is not properly initialized
+    pinMode(10, OUTPUT);  // MOSI
+    pinMode(9, INPUT);    // MISO
+    pinMode(8, OUTPUT);   // SCK
+    pinMode(2, OUTPUT);   // CS
+    pinMode(4, OUTPUT);   // DC
+    pinMode(5, OUTPUT);   // RST
+
+    // Pull CS high (deselect) before init
+    digitalWrite(2, HIGH);
+
+    // Hardware reset the TFT
+    digitalWrite(5, LOW);
+    delay(50);
+    digitalWrite(5, HIGH);
+    delay(150);
 
     // Initialize TFT
     tft.init();
     tft.setRotation(1);  // Landscape 480x320
     tft.fillScreen(TFT_BLACK);
 
-    // Simple check: if we can read the display, it's working
-    // TFT_eSPI doesn't provide a direct "is connected" check,
-    // so we assume success if init() doesn't hang
+    // Turn on backlight after successful init
+    digitalWrite(BL_PIN, HIGH);
+
     return true;
 }
 

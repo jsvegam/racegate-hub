@@ -143,8 +143,9 @@ TEST(CalculateGaps, OtherPilotsGapIsDifference) {
     race_logic::calculate_gaps(pilots, 3);
 
     EXPECT_EQ(pilots[0].gap_ms, -1);
-    EXPECT_EQ(pilots[1].gap_ms, 2000);   // 52000 - 50000
-    EXPECT_EQ(pilots[2].gap_ms, 5000);   // 55000 - 50000
+    EXPECT_EQ(pilots[1].gap_ms, 2000);   // Same laps: 52000 - 50000
+    // Third has fewer laps: gap = 1 lap * (50000/5) = 10000
+    EXPECT_EQ(pilots[2].gap_ms, 10000);
 }
 
 TEST(CalculateGaps, SinglePilotIsLeader) {
@@ -191,7 +192,7 @@ TEST(SortAndGap, FullWorkflowSameLaps) {
 }
 
 TEST(SortAndGap, FullWorkflowDifferentLaps) {
-    // Pilots with different lap counts — leader has most laps and highest total time
+    // Pilots with different lap counts — leader has most laps
     PilotEntry pilots[3] = {
         make_pilot("C", 3, 35000),
         make_pilot("A", 5, 60000),
@@ -206,13 +207,13 @@ TEST(SortAndGap, FullWorkflowDifferentLaps) {
     EXPECT_EQ(pilots[0].position, 1);
     EXPECT_EQ(pilots[0].gap_ms, -1);
 
+    // B has 1 fewer lap: gap = 1 * (60000/5) = 12000
     EXPECT_STREQ(pilots[1].name, "B");
     EXPECT_EQ(pilots[1].position, 2);
-    // gap = 48000 - 60000 = -12000 (int32_t subtraction)
-    EXPECT_EQ(pilots[1].gap_ms, static_cast<int32_t>(48000u - 60000u));
+    EXPECT_EQ(pilots[1].gap_ms, 12000);
 
+    // C has 2 fewer laps: gap = 2 * (60000/5) = 24000
     EXPECT_STREQ(pilots[2].name, "C");
     EXPECT_EQ(pilots[2].position, 3);
-    // gap = 35000 - 60000 = -25000
-    EXPECT_EQ(pilots[2].gap_ms, static_cast<int32_t>(35000u - 60000u));
+    EXPECT_EQ(pilots[2].gap_ms, 24000);
 }
