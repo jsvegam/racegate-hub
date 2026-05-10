@@ -10,11 +10,11 @@
 | Pantalla | TFT 3.5" ILI9488 SPI (480x320) | ✅ Funcionando |
 | Alimentación | Power bank USB-C | ✅ Suficiente para Fase 1 y 2 |
 
-### 📦 En camino
+### ✅ Recibido (listo para armar)
 
 | Componente | Modelo | Para qué |
 |------------|--------|----------|
-| Módulo RF | RX5808 (RSSI analógico) | Laptimer FPVGate (Dispositivo 2) |
+| Módulo RF | RX5808 (RSSI analógico) | Laptimer Timer (Dispositivo 1) |
 
 ### 📦 En inventario (para futuro)
 
