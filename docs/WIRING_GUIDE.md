@@ -90,9 +90,13 @@
 
 ---
 
-## Dispositivo 1 — TIMER (RX5808)
+## Dispositivo 1 — TIMER (RX5808 + FPVGate)
 
-### Pinout XIAO ESP32-S3 → RX5808
+> **Firmware**: [FPVGate](https://github.com/LouisHitchcock/FPVGate) v1.7.x
+> **Target PlatformIO**: `SeeedXIAOESP32S3`
+> **Pinout según**: docs/wiring/Seeed-XIAO-ESP32S3.md del repo FPVGate
+
+### Pinout XIAO ESP32-S3 → RX5808 (pinout oficial FPVGate)
 
 ```
                  Seeed Studio XIAO ESP32-S3
@@ -103,11 +107,11 @@
                  │                      │
           5V  ●──┤ 5V            D10 ├──● (libre)
          GND  ●──┤ GND            D9 ├──● (libre)
-       (libre)●──┤ D0 (GPIO2)     D8 ├──● (libre)
-       (libre)●──┤ D1 (GPIO3)     D7 ├──● GPIO44 ──► CH3 (Select)
-       (libre)●──┤ D2 (GPIO4)     D6 ├──● GPIO43 ──► CH2 (Clock)
-       (libre)●──┤ D3 (GPIO5)     D5 ├──● GPIO7  ──► CH1 (Data)
-  RSSI ◄──────●──┤ D4 (GPIO6)         │
+       (libre)●──┤ D0 (GPIO1)     D8 ├──● (libre)
+       (libre)●──┤ D1 (GPIO2)     D7 ├──● GPIO44 (libre)
+  RSSI ◄──────●──┤ D2 (GPIO3)     D6 ├──● GPIO43 (libre)
+  CH3 (CLK)◄──●──┤ D3 (GPIO4)     D5 ├──● GPIO6 ──► CH2 (SELECT)
+  CH1 (DATA)◄─●──┤ D4 (GPIO5)         │
                  │                      │
                  │  LED: GPIO21         │
                  └──────────────────────┘
@@ -117,17 +121,17 @@
 
 ```
 ═══════════════════════════════════════════════════════════════════════
- CABLEADO TIMER: XIAO ESP32-S3 → RX5808
+ CABLEADO TIMER: XIAO ESP32-S3 → RX5808 (pinout FPVGate)
 ═══════════════════════════════════════════════════════════════════════
 
  Color Cable     Pin XIAO          Pin RX5808       Función
 ───────────────────────────────────────────────────────────────────────
  🔴 ROJO         5V          ───►  +5V              Alimentación
  ⚫ NEGRO        GND         ───►  GND              Tierra
- 🟡 AMARILLO     D4 (GPIO6)  ◄───  RSSI             Señal analógica ADC
- 🟢 VERDE        D5 (GPIO7)  ───►  CH1              SPI Data
- 🔵 AZUL         D6 (GPIO43) ───►  CH2              SPI Clock
- 🟠 NARANJA      D7 (GPIO44) ───►  CH3              SPI Select/Enable
+ 🟡 AMARILLO     D2 (GPIO3)  ◄───  RSSI             Señal analógica ADC
+ 🟢 VERDE        D4 (GPIO5)  ───►  CH1              SPI Data
+ 🔵 AZUL         D5 (GPIO6)  ───►  CH2              SPI Select
+ 🟠 NARANJA      D3 (GPIO4)  ───►  CH3              SPI Clock
 ───────────────────────────────────────────────────────────────────────
  Total: 6 cables (Dupont cortados, soldar extremo al RX5808)
 ═══════════════════════════════════════════════════════════════════════
@@ -165,6 +169,41 @@
  • Solo necesitás conectar 1 GND (cualquiera de los 3)
 ```
 
+### Cómo flashear FPVGate
+
+```
+═══════════════════════════════════════════════════════════════════════
+ OPCIÓN A — Web Flasher (recomendado, sin instalar nada)
+═══════════════════════════════════════════════════════════════════════
+ 1. Abrí Chrome/Edge/Opera
+ 2. Andá a: https://fpvgate.xyz/flasher.html
+ 3. Conectá el XIAO ESP32-S3 por USB-C (sin nada más conectado)
+ 4. Seleccioná "Seeed Studio XIAO ESP32S3 (8MB)"
+ 5. Click "Connect" → elegí el puerto serial
+ 6. Click "Flash" → esperá ~2-3 minutos
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
+ OPCIÓN B — PlatformIO (si querés compilar desde fuente)
+═══════════════════════════════════════════════════════════════════════
+ git clone https://github.com/LouisHitchcock/FPVGate.git
+ cd FPVGate
+ pio run -e SeeedXIAOESP32S3 -t upload
+ pio run -e SeeedXIAOESP32S3 -t uploadfs
+═══════════════════════════════════════════════════════════════════════
+```
+
+### Verificación post-flash (antes de soldar)
+
+```
+ 1. Flasheá el XIAO (sin RX5808 conectado)
+ 2. El XIAO levanta WiFi AP: "FPVGate_XXXX" (password: fpvgate1)
+ 3. Conectate desde celular/PC al WiFi
+ 4. Abrí http://192.168.4.1
+ 5. Si ves la interfaz web de FPVGate → firmware OK ✅
+ 6. Ahora sí desconectá, soldá los Dupont al RX5808, y conectá
+```
+
 ---
 
 ## Resumen de compras de cables
@@ -184,8 +223,8 @@
  ⚫ NEGRO     = Tierra (GND)
  🟡 AMARILLO  = CS (display) / RSSI (timer)
  🟢 VERDE     = DC (display) / CH1 Data (timer)
- 🔵 AZUL      = SCK (display) / CH2 Clock (timer)
- 🟠 NARANJA   = RESET (display) / CH3 Select (timer)
+ 🔵 AZUL      = SCK (display) / CH2 Select (timer)
+ 🟠 NARANJA   = RESET (display) / CH3 Clock (timer)
  🟣 MORADO    = MOSI (solo display)
  ⚪ BLANCO    = MISO (solo display)
  🟤 MARRÓN    = Backlight (solo display)
