@@ -2,14 +2,27 @@
 
 #include <Arduino.h>
 #include "display.h"
-#include "simulation.h"
 #include "render.h"
 #include "ticker.h"
+#include "data_provider.h"
+
+#ifdef USE_FPVGATE
+#include "fpvgate_provider.h"
+#else
+#include "simulation.h"
+#endif
 
 LGFX lcd;
-SimulationEngine simulation;
 render::RenderState render_state;
 ticker::TickerState ticker_state;
+
+#ifdef USE_FPVGATE
+FPVGateProvider fpvgate;
+DataProvider* provider = &fpvgate;
+#else
+SimulationEngine simulation;
+DataProvider* provider = &simulation;
+#endif
 
 void setup() {
     Serial.begin(115200);
@@ -29,7 +42,25 @@ void setup() {
 
     lcd.fillScreen(TFT_BLACK);
 
+#ifdef USE_FPVGATE
+    // Connect to FPVGate WiFi and start webhook listener
+    FPVGateConfig config;
+    config.ssid = FPVGATE_SSID;
+    config.password = FPVGATE_PASSWORD;
+    config.server_port = 80;
+
+    if (!fpvgate.init(config)) {
+        Serial.println("ERROR: FPVGate WiFi connection failed!");
+        Serial.println("Falling back to simulation mode...");
+        // TODO: could fall back to simulation here
+    } else {
+        Serial.printf("FPVGate connected. Display IP: %s\n",
+                      WiFi.localIP().toString().c_str());
+    }
+#else
     simulation.init(6);
+#endif
+
     render::init_render(render_state);
     render::draw_header(lcd, render_state);
     ticker::init_ticker(ticker_state);
@@ -38,15 +69,16 @@ void setup() {
 }
 
 void loop() {
-    simulation.update();
+    provider->update();
 
-    if (simulation.has_new_data()) {
+    if (provider->has_new_data()) {
         PilotEntry pilots[MAX_PILOTS];
-        uint8_t count = simulation.get_pilots(pilots, MAX_PILOTS);
-        render::render_dashboard(lcd, render_state, pilots, count);
-
-        // Generate race commentary
-        ticker::generate_message(ticker_state, pilots, count);
+        uint8_t count = provider->get_pilots(pilots, MAX_PILOTS);
+        if (count > 0) {
+            render::render_dashboard(lcd, render_state, pilots, count);
+            // Generate race commentary
+            ticker::generate_message(ticker_state, pilots, count);
+        }
     }
 
     // Always update ticker animation (particles need smooth updates)
