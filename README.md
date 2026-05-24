@@ -118,14 +118,81 @@ La interfaz `DataProvider` desacopla la fuente de datos del renderizado. Para in
 ## Roadmap
 
 - [x] Fase 1: Display standalone con simulación
-- [ ] Fase 2: Integración WiFi con [FPVGate](https://github.com/LouisHitchcock/FPVGate) (Webhooks / HTTP polling)
-- [ ] Fase 3: Configuración por interfaz (número de pilotos, colores, etc.)
+- [x] Fase 1.5: Timer hardware (XIAO + RX5808 + FPVGate firmware)
+- [ ] Fase 2: Integración WiFi con [FPVGate](https://github.com/LouisHitchcock/FPVGate) (Webhooks)
+- [ ] Fase 3: Multi-piloto (múltiples nodos timer → 1 display)
+- [ ] Fase 4: Configuración por interfaz (número de pilotos, colores, etc.)
+
+## Arquitectura de Red
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    RED WiFi: "FPVGate_XXXX"                         │
+│                    (AP creado por Timer 1)                           │
+│                                                                     │
+│  ┌──────────────────┐                                               │
+│  │ Timer 1 (AP)     │  IP: 192.168.4.1                              │
+│  │ XIAO + RX5808    │  Canal: R7 (piloto "Louis")                   │
+│  │ FPVGate firmware │  Webhooks → 192.168.4.2                       │
+│  └────────┬─────────┘                                               │
+│           │ WiFi AP                                                  │
+│           │                                                          │
+│  ┌────────┴─────────┐                                               │
+│  │ Display (Cliente) │  IP: 192.168.4.2                              │
+│  │ XIAO + ILI9488   │  Escucha POST en /Lap, /RaceStart, /RaceStop │
+│  │ Este firmware     │  Muestra dashboard de carrera                 │
+│  └────────┬─────────┘                                               │
+│           │                                                          │
+│  ┌────────┴─────────┐                                               │
+│  │ Timer 2 (Cliente) │  IP: 192.168.4.3  (futuro)                   │
+│  │ XIAO + RX5808    │  Canal: R1 (piloto "Razor")                   │
+│  │ FPVGate firmware │  Webhooks → 192.168.4.2                       │
+│  └──────────────────┘                                               │
+│                                                                     │
+│  Timer N... (hasta 8 pilotos)                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Cómo funciona
+
+1. **Timer 1** crea la red WiFi (es el Access Point)
+2. **El Display** se conecta como cliente WiFi a esa red
+3. **Timers adicionales** (futuros) también se conectan como clientes a la misma red
+4. Cada timer envía webhooks HTTP POST al display cuando detecta una vuelta
+5. El display identifica de qué timer/piloto viene cada evento y actualiza el dashboard
+
+### Webhooks de FPVGate
+
+FPVGate envía HTTP POST vacíos (sin body) a los endpoints configurados:
+
+| Endpoint | Evento | Acción del display |
+|----------|--------|-------------------|
+| `POST /Lap` | Drone pasó por la gate | Registrar vuelta, calcular tiempo |
+| `POST /RaceStart` | Carrera iniciada | Resetear datos, iniciar cronómetro |
+| `POST /RaceStop` | Carrera detenida | Mostrar resumen final |
+
+El display identifica al piloto por la **IP de origen** del POST (cada timer tiene IP fija en la red).
+
+### Escalabilidad
+
+| Nodos Timer | Pilotos | Requisitos |
+|-------------|---------|------------|
+| 1 | 1 | Setup actual (tu XIAO + RX5808) |
+| 2 | 2 | Amigo con otro XIAO + RX5808 |
+| 3-8 | 3-8 | Más nodos, cada uno en canal diferente |
+
+Cada nodo timer adicional solo necesita:
+- 1x XIAO ESP32-S3 (~$7)
+- 1x RX5808 (~$5)
+- Antena 5.8GHz
+- Flashear FPVGate
+- Configurar webhook apuntando a la IP del display
 
 ## Integración con FPVGate
 
-Este display está diseñado para integrarse con [FPVGate](https://github.com/LouisHitchcock/FPVGate), un laptimer FPV basado en RSSI que usa el mismo XIAO ESP32-S3. La integración se hará conectando el display como cliente WiFi al AP de FPVGate y recibiendo datos de carrera vía HTTP webhooks.
+Este display está diseñado para integrarse con [FPVGate](https://github.com/LouisHitchcock/FPVGate), un laptimer FPV basado en RSSI que usa el mismo XIAO ESP32-S3. La integración se hace conectando el display como cliente WiFi al AP de FPVGate y recibiendo eventos de carrera vía HTTP webhooks.
 
-La interfaz `DataProvider` permite reemplazar la simulación por datos reales sin modificar el código de renderizado. Solo se necesita implementar una clase `FPVGateProvider` que se conecte al WiFi y parsee los datos de carrera.
+La interfaz `DataProvider` permite reemplazar la simulación por datos reales sin modificar el código de renderizado. La clase `FPVGateProvider` levanta un servidor HTTP que escucha los webhooks de uno o más nodos FPVGate.
 
 Ver detalles técnicos en el [documento de diseño](.kiro/specs/fpv-laptimer-display/design.md#plan-de-integración-con-fpvgate).
 
