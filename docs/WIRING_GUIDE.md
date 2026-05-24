@@ -26,13 +26,13 @@
                  │      ┌─────┐         │
                  │      └─────┘         │
                  │                      │
-          5V  ●──┤ 5V            D10 ├──● GPIO10 ──► MOSI (TFT)
-         GND  ●──┤ GND            D9 ├──● GPIO9  ◄── MISO (TFT)
-   CS (TFT)◄──●──┤ D0 (GPIO2)     D8 ├──● GPIO8  ──► SCK  (TFT)
-   BL (TFT)◄──●──┤ D1 (GPIO3)     D7 ├──● (libre)
-   DC (TFT)◄──●──┤ D2 (GPIO4)     D6 ├──● (libre)
-  RST (TFT)◄──●──┤ D3 (GPIO5)     D5 ├──● (libre)
-       (libre)●──┤ D4 (GPIO6)         │
+          5V  ●──┤ 5V            D10 ├──● GPIO9  ──► MOSI (TFT)
+         GND  ●──┤ GND            D9 ├──● GPIO8  ◄── MISO (TFT)
+   CS (TFT)◄──●──┤ D0 (GPIO1)     D8 ├──● GPIO7  ──► SCK  (TFT)
+   BL (TFT)◄──●──┤ D1 (GPIO2)     D7 ├──● (libre)
+   DC (TFT)◄──●──┤ D2 (GPIO3)     D6 ├──● (libre)
+  RST (TFT)◄──●──┤ D3 (GPIO4)     D5 ├──● (libre)
+       (libre)●──┤ D4 (GPIO5)         │
                  │                      │
                  │  LED: GPIO21         │
                  └──────────────────────┘
@@ -43,19 +43,20 @@
 ```
 ═══════════════════════════════════════════════════════════════════════
  CABLEADO DISPLAY: XIAO ESP32-S3 → ILI9488 TFT 3.5"
+ (Verificado y funcionando)
 ═══════════════════════════════════════════════════════════════════════
 
  Color Cable     Pin XIAO          Pin ILI9488      Función
 ───────────────────────────────────────────────────────────────────────
  🔴 ROJO         5V          ───►  VCC              Alimentación 5V
  ⚫ NEGRO        GND         ───►  GND              Tierra
- 🟣 MORADO       D10 (GPIO10)───►  SDI (MOSI)       Datos SPI salida
- ⚪ BLANCO       D9  (GPIO9) ◄───  SDO (MISO)       Datos SPI entrada
- 🔵 AZUL         D8  (GPIO8) ───►  SCK              Reloj SPI
- 🟡 AMARILLO     D0  (GPIO2) ───►  CS               Chip Select
- 🟢 VERDE        D2  (GPIO4) ───►  DC/RS            Data/Command
- 🟠 NARANJA      D3  (GPIO5) ───►  RESET            Reset pantalla
- 🟤 MARRÓN       D1  (GPIO3) ───►  LED              Backlight
+ 🟣 MORADO       D10 (GPIO9) ───►  SDI (MOSI)       Datos SPI salida
+ ⚪ BLANCO       D9  (GPIO8) ◄───  SDO (MISO)       Datos SPI entrada
+ � MARRÓN       D8  (GPIO7) ───►  SCK              Reloj SPI
+ 🟡 AMARILLO     D0  (GPIO1) ───►  CS               Chip Select
+ � NARANJA      D1  (GPIO2) ───►  LED              Backlight
+ � AZUL         D2  (GPIO3) ───►  DC/RS            Data/Command
+ � VERDE        D3  (GPIO4) ───►  RESET            Reset pantalla
 ───────────────────────────────────────────────────────────────────────
  Total: 9 cables
 ═══════════════════════════════════════════════════════════════════════
@@ -78,11 +79,11 @@
  🔴 ROJO ────┤  VCC                            │
  ⚫ NEGRO ───┤  GND                            │
  🟡 AMARILLO─┤  CS                             │
- 🟠 NARANJA──┤  RESET                          │
- 🟢 VERDE ───┤  DC/RS                          │
+ � VERDE ───┤  RESET                          │
+ � AZUL ────┤  DC/RS                          │
  🟣 MORADO ──┤  SDI (MOSI)                     │
- 🔵 AZUL ────┤  SCK                            │
- 🟤 MARRÓN ──┤  LED (Backlight)                │
+ � MARRÓN ──┤  SCK                            │
+ � NARANJA──┤  LED (Backlight)                │
  ⚪ BLANCO ──┤  SDO (MISO)                     │
               │                                 │
               └─────────────────────────────────┘
@@ -222,12 +223,12 @@
  🔴 ROJO      = Alimentación (+5V)
  ⚫ NEGRO     = Tierra (GND)
  🟡 AMARILLO  = CS (display) / RSSI (timer)
- 🟢 VERDE     = DC (display) / CH1 Data (timer)
- 🔵 AZUL      = SCK (display) / CH2 Select (timer)
- 🟠 NARANJA   = RESET (display) / CH3 Clock (timer)
+ 🟢 VERDE     = RESET (display) / CH1 Data (timer)
+ 🔵 AZUL      = DC (display) / CH2 Select (timer)
+ 🟠 NARANJA   = LED/Backlight (display) / CH3 Clock (timer)
  🟣 MORADO    = MOSI (solo display)
  ⚪ BLANCO    = MISO (solo display)
- 🟤 MARRÓN    = Backlight (solo display)
+ 🟤 MARRÓN    = SCK (solo display)
 ═══════════════════════════════════════════════════════════════
 ```
 

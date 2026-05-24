@@ -8,13 +8,6 @@
 #include <WebServer.h>
 #endif
 
-// Configuration for FPVGate WiFi connection
-struct FPVGateConfig {
-    const char* ssid;           // WiFi SSID of FPVGate AP (e.g., "FPVGate_E110")
-    const char* password;       // WiFi password (default: "fpvgate1")
-    uint16_t server_port;       // HTTP server port to listen on (default: 80)
-};
-
 // Internal state for each pilot (identified by timer node IP)
 struct PilotNode {
     char     name[NAME_MAX_LEN + 1];  // Pilot name (from config or IP-based)
@@ -27,12 +20,20 @@ struct PilotNode {
     bool     active;                   // Whether this pilot is in the current race
 };
 
+// Lap history entry for single-pilot mode
+static const uint8_t MAX_LAP_HISTORY = 8;  // Show last 8 laps on screen
+
+struct LapRecord {
+    uint16_t lap_number;
+    uint32_t lap_time_ms;
+};
+
 class FPVGateProvider : public DataProvider {
 public:
     FPVGateProvider();
 
-    // Initialize WiFi connection and HTTP server
-    bool init(const FPVGateConfig& config);
+    // Initialize HTTP webhook server (WiFi already connected via WiFiManager)
+    bool init();
 
     // DataProvider interface
     void update() override;
@@ -43,6 +44,11 @@ public:
     bool is_connected() const;
     uint8_t get_pilot_count() const { return num_pilots_; }
 
+    // Single-pilot mode: get lap history as PilotEntry rows
+    // Each row represents one lap (position=lap#, name=time, etc.)
+    bool is_single_pilot() const { return num_pilots_ == 1; }
+    uint8_t get_lap_history(PilotEntry laps[], uint8_t max_count);
+
 private:
     PilotNode pilots_[MAX_PILOTS];
     uint8_t   num_pilots_;
@@ -51,6 +57,11 @@ private:
     bool      race_active_;
     uint32_t  race_start_ms_;
     uint32_t  last_wifi_check_ms_;
+
+    // Lap history for single-pilot mode
+    LapRecord lap_history_[MAX_LAP_HISTORY];
+    uint8_t   lap_history_count_;
+    uint32_t  best_overall_ms_;
 
 #ifndef NATIVE_BUILD
     WebServer* server_;

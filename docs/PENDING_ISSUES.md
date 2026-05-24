@@ -1,41 +1,55 @@
-# Problemas Pendientes — RaceGate Hub
+# Pending Issues — RaceGate Hub
 
-## BLOQUEANTE: Webhooks de FPVGate no funcionan en modo AP
+## RESOLVED: FPVGate webhooks don't work in AP mode
 
-**Fecha**: 2026-05-24
-**Estado**: Sin resolver
+**Date**: 2026-05-24
+**Status**: ✅ Resolved (2026-05-25)
 
-### Problema
+### Problem
 
-FPVGate no envía webhooks HTTP cuando opera como Access Point (AP). El código de webhooks en FPVGate (`lib/WEBHOOK/webhook.cpp`) tiene esta condición:
+FPVGate doesn't send HTTP webhooks when operating as Access Point (AP). The webhook code checks:
 
 ```cpp
 if (WiFi.status() != WL_CONNECTED) {
-    DEBUG("Webhook skipped - WiFi not connected\n");
-    return;
+    return;  // Never sends in AP mode
 }
 ```
 
-`WiFi.status() == WL_CONNECTED` solo es `true` cuando el ESP32 está conectado como **cliente (STA)** a otra red WiFi. Cuando FPVGate es el AP (que es el modo por defecto), esta condición es `false` y los webhooks nunca se envían.
+`WiFi.status() == WL_CONNECTED` is only `true` when the ESP32 is connected as a **client (STA)** to another WiFi network. When FPVGate IS the AP, this condition is always `false`.
 
-### Lo que funciona
+### Resolution
 
-- ✅ Display se conecta al WiFi de FPVGate (IP: 192.168.4.2)
-- ✅ Display levanta servidor HTTP (responde 404 a GET)
-- ✅ FPVGate detecta vueltas por RSSI correctamente
-- ✅ FPVGate muestra vueltas en su interfaz web
-- ❌ FPVGate NO envía POST a 192.168.4.2/Lap (webhooks bloqueados)
+Use an external WiFi network (home router or phone hotspot). All devices connect as STA clients to the same network. FPVGate has `WL_CONNECTED == true` and sends webhooks normally.
 
-### Soluciones posibles
+This is the scenario FPVGate was designed for (multi-node with central router).
 
-1. **Polling HTTP (recomendado)**: El display consulta periódicamente un endpoint de FPVGate para obtener datos de carrera. La interfaz web de FPVGate ya muestra datos en tiempo real, así que debe existir un endpoint o WebSocket que podamos consumir.
+See [docs/NETWORK_ARCHITECTURE.md](NETWORK_ARCHITECTURE.md) for full explanation.
 
-2. **Modificar FPVGate**: Cambiar la condición del webhook para que también funcione en modo AP (reemplazar `WiFi.status() == WL_CONNECTED` por una verificación de que hay clientes conectados al AP). Requiere fork de FPVGate.
+### Verified Working (2026-05-25)
 
-3. **Modo STA en FPVGate**: Configurar FPVGate para que se conecte a una red WiFi existente (modo Station) en vez de crear su propio AP. Así `WiFi.status()` sería `WL_CONNECTED`. Pero requiere un router/AP externo.
+- ✅ Display connects via WiFi Manager (captive portal)
+- ✅ FPVGate connects to same network in STA mode
+- ✅ Webhooks arrive at display (POST /Lap, /RaceStart, /RaceStop)
+- ✅ Lap times display correctly in single-pilot mode
+- ✅ Smart mode detection (single vs multi pilot)
 
-### Próximos pasos
+---
 
-- Investigar qué endpoints HTTP usa la interfaz web de FPVGate para obtener datos de carrera en tiempo real
-- Implementar polling en el display como alternativa a webhooks
-- Considerar WebSocket si FPVGate lo usa para su interfaz web
+## OPEN: Pilot names not transmitted in webhooks
+
+**Date**: 2026-05-25
+**Status**: Open (cosmetic)
+
+### Problem
+
+FPVGate sends empty POST bodies for webhooks. No pilot name, channel, or metadata is included. The display currently generates names from the source IP (e.g., "PILOT_129").
+
+### Possible Solutions
+
+1. Parse FPVGate's web API to get pilot configuration
+2. Allow manual pilot name configuration on the display
+3. Contribute a PR to FPVGate adding pilot info to webhook payload
+
+### Impact
+
+Low — display works correctly, just shows generic names instead of configured pilot names.

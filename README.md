@@ -1,240 +1,212 @@
 # RaceGate Hub
 
-Display standalone de carrera para sistemas de laptimer FPV. Muestra un dashboard en tiempo real con posiciones, tiempos de vuelta, mejores tiempos, número de vueltas y gaps entre pilotos.
+**Standalone FPV race leaderboard display** powered by a Seeed Studio XIAO ESP32-S3 and a 3.5" ILI9488 TFT (480×320). Receives real-time lap data from [FPVGate](https://github.com/LouisHitchcock/FPVGate) timers via WiFi webhooks and renders a live race dashboard.
 
-Construido con un **Seeed Studio XIAO ESP32-S3** y una pantalla **ILI9488 3.5" TFT (480x320)** conectada por SPI.
+## Features
 
-## Estado actual
+- **Smart display mode**: Automatically detects single-pilot vs multi-pilot races
+  - **Single pilot**: Shows lap-by-lap history with times and gap vs personal best
+  - **Multi pilot**: Shows leaderboard with positions, gaps, and live sorting
+- **WiFi Manager**: Configure WiFi from your phone — no recompilation needed
+- **Real-time webhooks**: Receives lap events from FPVGate with zero latency
+- **Partial-update rendering**: Flicker-free display at 5–10 FPS
+- **Dark theme**: Terminal-style palette optimized for outdoor visibility
+- **Simulation mode**: Built-in demo mode for development and showcasing
+- **Modular architecture**: `DataProvider` interface decouples data source from rendering
 
-**Fase 1 — Standalone con datos simulados.** El sistema funciona de forma autónoma con un motor de simulación que genera datos de carrera realistas. La arquitectura está preparada para reemplazar la simulación por datos reales de FPVGate vía WiFi.
+## Quick Start
 
-## Características
+### Hardware Required
 
-- Dashboard tipo tabla con 5-8 pilotos simultáneos
-- Columnas: Posición, Nombre, Última Vuelta, Mejor Vuelta, Vueltas, Gap
-- Tema oscuro con colores de destaque (verde = líder, rojo = peor tiempo)
-- Ordenamiento dinámico de posiciones
-- Renderizado eficiente con actualizaciones parciales (sin parpadeo)
-- Tasa de refresco: 5-10 FPS
-- Interfaz Data_Provider abstracta para futura integración WiFi
+| Component | Model | ~Cost |
+|-----------|-------|-------|
+| MCU | Seeed Studio XIAO ESP32-S3 | $7 |
+| Display | ILI9488 3.5" TFT SPI (480×320) | $12 |
+| Timer (separate device) | XIAO ESP32-S3 + RX5808 + FPVGate firmware | $12 |
 
-## Hardware
+### Wiring (Display)
 
-| Componente | Modelo |
-|------------|--------|
-| MCU | Seeed Studio XIAO ESP32-S3 |
-| Pantalla | ILI9488 3.5" TFT SPI (480x320) |
-| Alimentación | 5V vía USB (desarrollo) o boost converter (standalone) |
+| Color | XIAO Pin | TFT Pin | Function |
+|-------|----------|---------|----------|
+| 🟣 Purple | D10 (GPIO9) | SDI (MOSI) | SPI Data Out |
+| ⚪ White | D9 (GPIO8) | SDO (MISO) | SPI Data In |
+| 🟤 Brown | D8 (GPIO7) | SCK | SPI Clock |
+| 🟡 Yellow | D0 (GPIO1) | CS | Chip Select |
+| 🟠 Orange | D1 (GPIO2) | LED | Backlight |
+| 🔵 Blue | D2 (GPIO3) | DC/RS | Data/Command |
+| 🟢 Green | D3 (GPIO4) | RESET | Reset |
+| 🔴 Red | 5V | VCC | Power |
+| ⚫ Black | GND | GND | Ground |
 
-### Cableado SPI
+> Full wiring diagrams with ASCII art: [docs/WIRING_GUIDE.md](docs/WIRING_GUIDE.md)
 
-| Señal | GPIO ESP32-S3 | Pin XIAO | Pin ILI9488 |
-|-------|---------------|----------|-------------|
-| MOSI | GPIO10 | D10 | SDI (MOSI) |
-| MISO | GPIO9 | D9 | SDO (MISO) |
-| SCK | GPIO8 | D8 | SCK |
-| CS | GPIO2 | D0 | CS |
-| DC | GPIO4 | D2 | DC/RS |
-| RST | GPIO5 | D3 | RESET |
-| BL | GPIO3 | D1 | LED (Backlight) |
-
-Además conectar:
-- **5V del XIAO** → **VCC del TFT**
-- **GND del XIAO** → **GND del TFT**
-
-### Alimentación durante desarrollo
-
-```
-PC ──USB-C──► XIAO ESP32-S3 ──pin 5V──► ILI9488 VCC
-                              ──GND────► ILI9488 GND
-```
-
-El cable USB-C alimenta el XIAO (~100 mA) y el XIAO alimenta la pantalla (~150-200 mA) por el pin 5V. Consumo total ~300 mA, dentro del límite de un puerto USB estándar. No se necesita fuente externa.
-
-### Alimentación standalone (sin PC)
-
-```
-Batería LiPo ──► Boost Converter (5V, ≥500mA) ──► pin 5V del XIAO
-                                                 ──► GND del XIAO
-```
-
-No conectar USB y fuente externa simultáneamente.
-
-## Requisitos de software
-
-- [PlatformIO](https://platformio.org/) (CLI o extensión VS Code / Kiro)
-- Framework: Arduino
-
-## Compilar y flashear
+### Flash & Run
 
 ```bash
-# Compilar
-pio run
+# Clone
+git clone https://github.com/yourusername/RaceGateHub.git
+cd RaceGateHub
 
-# Flashear al XIAO ESP32-S3
-pio run --target upload
+# Flash simulation mode (no WiFi needed)
+pio run -e esp32s3 -t upload
 
-# Monitor serial (opcional, para debug)
-pio device monitor --baud 115200
+# Flash FPVGate integration mode (with WiFi Manager)
+pio run -e esp32s3_fpvgate -t upload
 ```
 
-## Estructura del proyecto
+### First-Time WiFi Setup (FPVGate mode)
+
+1. Flash with `esp32s3_fpvgate` environment
+2. Display shows: "Conectando WiFi... Connect to: RaceGate_Display"
+3. From your phone, connect to WiFi **"RaceGate_Display"** (password: `racegate1`)
+4. A captive portal opens — select your WiFi network and enter password
+5. Display connects and shows its IP address
+6. Configure that IP as the webhook target in FPVGate's web interface
+
+Credentials are saved in flash. Next boot connects automatically.
+
+---
+
+## How It Works
+
+### Network Architecture
+
+All devices connect to the same WiFi network (your home router or a phone hotspot):
+
+```
+WiFi Network (home router or phone hotspot)
+   │
+   ├── FPVGate Timer 1 (STA) ─── detects laps via RSSI
+   ├── FPVGate Timer 2 (STA) ─── (optional, for multi-pilot)
+   │
+   ├── RaceGate Display (STA) ── receives webhooks, shows dashboard
+   │
+   └── Your phone/PC ─────────── FPVGate web UI + WiFi config
+```
+
+FPVGate sends HTTP POST webhooks to the display when events occur:
+
+| Endpoint | Event | Display Action |
+|----------|-------|----------------|
+| `POST /Lap` | Drone crossed the gate | Record lap, update times |
+| `POST /RaceStart` | Race started | Reset all data |
+| `POST /RaceStop` | Race ended | Freeze display |
+
+### Smart Display Modes
+
+The display automatically adapts based on how many pilots are detected:
+
+**Single Pilot** (1 timer node sending laps):
+```
+ LAP │  TIME   │  BEST  │   GAP
+─────┼─────────┼────────┼─────────
+  1  │  5.833  │ 5.833  │   ---
+  2  │  6.146  │ 5.833  │ +0.313
+  3  │  7.984  │ 5.833  │ +2.151
+  4  │  8.295  │ 5.833  │ +2.462
+```
+
+**Multi Pilot** (multiple timer nodes):
+```
+ POS │  PILOT  │  LAST  │  BEST  │ LAPS │  GAP
+─────┼─────────┼────────┼────────┼──────┼─────────
+  1  │ RAZOR   │ 12.345 │ 11.234 │  15  │   ---
+  2  │ VIPER   │ 13.456 │ 12.100 │  14  │ +1.234
+  3  │ GHOST   │ 14.567 │ 12.890 │  14  │ +3.456
+```
+
+---
+
+## Project Structure
 
 ```
 ├── src/
-│   ├── main.cpp              # Loop principal (orquestador)
-│   ├── display.h / .cpp      # Inicialización del hardware TFT
-│   ├── data_provider.h       # Interfaz abstracta de datos
-│   ├── simulation.h / .cpp   # Motor de simulación de carrera
-│   └── render.h / .cpp       # Renderizado del dashboard
+│   ├── main.cpp              # Main orchestrator
+│   ├── display.h/.cpp        # TFT hardware init, splash screen
+│   ├── data_provider.h       # Abstract data interface
+│   ├── simulation.h/.cpp     # Demo simulation engine
+│   ├── fpvgate_provider.h/.cpp # FPVGate webhook receiver
+│   ├── wifi_manager.h/.cpp   # WiFi Manager (captive portal)
+│   ├── render.h/.cpp         # Dashboard renderer (partial update)
+│   ├── race_logic.h/.cpp     # Sorting and gap calculation
+│   └── ticker.h/.cpp         # Race commentary ticker
 ├── test/
-│   └── test_native/          # Tests unitarios y PBT (host)
-├── platformio.ini            # Configuración PlatformIO
+│   └── test_native/          # Unit tests (GoogleTest + RapidCheck)
+├── docs/
+│   ├── WIRING_GUIDE.md       # Full wiring diagrams
+│   ├── NETWORK_ARCHITECTURE.md # WiFi/webhook design decisions
+│   ├── HARDWARE_INVENTORY.md # BOM and purchase links
+│   ├── ENCLOSURE_SPEC.md     # 3D printed case specs
+│   └── PENDING_ISSUES.md     # Known issues tracker
+├── platformio.ini            # Build configuration (3 environments)
 └── README.md
 ```
 
-## Arquitectura
+## Build Environments
 
-```
-┌──────────┐     ┌───────────────┐     ┌──────────────┐
-│Main Loop │────►│ Data_Provider │◄────│  Simulation  │
-│          │     │  (interfaz)   │     │   Engine     │
-│          │     └───────────────┘     └──────────────┘
-│          │            ▲
-│          │            │ (futuro)
-│          │     ┌──────┴────────┐
-│          │     │ WiFi/FPVGate  │
-│          │     │   Client      │
-│          │     └───────────────┘
-│          │
-│          │────►┌───────────────┐     ┌──────────────┐
-│          │     │ Render_Engine │────►│  TFT_eSPI    │
-└──────────┘     └───────────────┘     │  ILI9488     │
-                                       └──────────────┘
-```
+| Environment | Command | Description |
+|-------------|---------|-------------|
+| `esp32s3` | `pio run -e esp32s3` | Simulation mode (no WiFi) |
+| `esp32s3_fpvgate` | `pio run -e esp32s3_fpvgate` | FPVGate integration (WiFi + webhooks) |
+| `native` | `pio test -e native` | Host-based unit tests |
 
-La interfaz `DataProvider` desacopla la fuente de datos del renderizado. Para integrar FPVGate, solo hay que crear una nueva clase que implemente `DataProvider` (por ejemplo vía WebSocket o HTTP polling) sin modificar el código de renderizado.
+---
 
-## Roadmap
+## FAQ
 
-- [x] Fase 1: Display standalone con simulación
-- [x] Fase 1.5: Timer hardware (XIAO + RX5808 + FPVGate firmware)
-- [ ] Fase 2: Integración WiFi con [FPVGate](https://github.com/LouisHitchcock/FPVGate) (Webhooks)
-- [ ] Fase 3: Multi-piloto (múltiples nodos timer → 1 display)
-- [ ] Fase 4: Configuración por interfaz (número de pilotos, colores, etc.)
+### Why does FPVGate need an external WiFi network? Can't the display connect directly to FPVGate's AP?
 
-## Arquitectura de Red
+FPVGate's webhook code checks `WiFi.status() == WL_CONNECTED` before sending. This is only `true` when the ESP32 is connected **as a client (STA)** to another network. When FPVGate **is** the AP, that condition is always `false` and webhooks never fire.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    RED WiFi: "FPVGate_XXXX"                         │
-│                    (AP creado por Timer 1)                           │
-│                                                                     │
-│  ┌──────────────────┐                                               │
-│  │ Timer 1 (AP)     │  IP: 192.168.4.1                              │
-│  │ XIAO + RX5808    │  Canal: R7 (piloto "Louis")                   │
-│  │ FPVGate firmware │  Webhooks → 192.168.4.2                       │
-│  └────────┬─────────┘                                               │
-│           │ WiFi AP                                                  │
-│           │                                                          │
-│  ┌────────┴─────────┐                                               │
-│  │ Display (Cliente) │  IP: 192.168.4.2                              │
-│  │ XIAO + ILI9488   │  Escucha POST en /Lap, /RaceStart, /RaceStop │
-│  │ Este firmware     │  Muestra dashboard de carrera                 │
-│  └────────┬─────────┘                                               │
-│           │                                                          │
-│  ┌────────┴─────────┐                                               │
-│  │ Timer 2 (Cliente) │  IP: 192.168.4.3  (futuro)                   │
-│  │ XIAO + RX5808    │  Canal: R1 (piloto "Razor")                   │
-│  │ FPVGate firmware │  Webhooks → 192.168.4.2                       │
-│  └──────────────────┘                                               │
-│                                                                     │
-│  Timer N... (hasta 8 pilotos)                                       │
-└─────────────────────────────────────────────────────────────────────┘
-```
+The solution: all devices (timers + display) connect to the same external WiFi (your home router or a phone hotspot). FPVGate was designed for multi-node setups where a central router connects everything.
 
-### Cómo funciona
+> Full explanation: [docs/NETWORK_ARCHITECTURE.md](docs/NETWORK_ARCHITECTURE.md)
 
-1. **Timer 1** crea la red WiFi (es el Access Point)
-2. **El Display** se conecta como cliente WiFi a esa red
-3. **Timers adicionales** (futuros) también se conectan como clientes a la misma red
-4. Cada timer envía webhooks HTTP POST al display cuando detecta una vuelta
-5. El display identifica de qué timer/piloto viene cada evento y actualiza el dashboard
+### Do I need internet access?
 
-### Webhooks de FPVGate
+No. The WiFi network only provides local connectivity between devices. No internet is required. A phone hotspot with mobile data disabled works fine.
 
-FPVGate envía HTTP POST vacíos (sin body) a los endpoints configurados:
+### How do I change WiFi networks (e.g., moving from home to a race field)?
 
-| Endpoint | Evento | Acción del display |
-|----------|--------|-------------------|
-| `POST /Lap` | Drone pasó por la gate | Registrar vuelta, calcular tiempo |
-| `POST /RaceStart` | Carrera iniciada | Resetear datos, iniciar cronómetro |
-| `POST /RaceStop` | Carrera detenida | Mostrar resumen final |
+The display uses WiFi Manager with a captive portal. To switch networks:
+1. The display will fail to connect to the old network
+2. After timeout, it opens the "RaceGate_Display" AP again
+3. Connect from your phone and select the new network
 
-El display identifica al piloto por la **IP de origen** del POST (cada timer tiene IP fija en la red).
+Alternatively, you can trigger a WiFi reset by reflashing the firmware.
 
-### Escalabilidad
+### Can I use this display without FPVGate?
 
-| Nodos Timer | Pilotos | Requisitos |
-|-------------|---------|------------|
-| 1 | 1 | Setup actual (tu XIAO + RX5808) |
-| 2 | 2 | Amigo con otro XIAO + RX5808 |
-| 3-8 | 3-8 | Más nodos, cada uno en canal diferente |
+Yes. Flash with `pio run -e esp32s3 -t upload` for simulation mode. It runs a realistic race demo with 6 pilots — useful for development, showcasing, or as a base for integrating with other timing systems.
 
-Cada nodo timer adicional solo necesita:
-- 1x XIAO ESP32-S3 (~$7)
-- 1x RX5808 (~$5)
-- Antena 5.8GHz
-- Flashear FPVGate
-- Configurar webhook apuntando a la IP del display
+### How does multi-pilot work?
 
-## Integración con FPVGate
+Each pilot needs their own FPVGate timer node (XIAO + RX5808, ~$12 each) tuned to a different video channel. All timers connect to the same WiFi and send webhooks to the display. The display identifies each pilot by the source IP of the webhook.
 
-Este display está diseñado para integrarse con [FPVGate](https://github.com/LouisHitchcock/FPVGate), un laptimer FPV basado en RSSI que usa el mismo XIAO ESP32-S3. La integración se hace conectando el display como cliente WiFi al AP de FPVGate y recibiendo eventos de carrera vía HTTP webhooks.
+### What happens with only one timer?
 
-La interfaz `DataProvider` permite reemplazar la simulación por datos reales sin modificar el código de renderizado. La clase `FPVGateProvider` levanta un servidor HTTP que escucha los webhooks de uno o más nodos FPVGate.
+The display detects it's a single-pilot session and switches to lap history mode — showing each lap as a row with time and gap vs personal best. When multiple timers are present, it automatically switches to the multi-pilot leaderboard.
 
-Ver detalles técnicos en el [documento de diseño](.kiro/specs/fpv-laptimer-display/design.md#plan-de-integración-con-fpvgate).
+---
 
-## Preguntas Frecuentes
+## Changelog
 
-### ¿Necesito conectar la pantalla para flashear el firmware?
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
-No. Puedes conectar solo el XIAO ESP32-S3 por USB-C a tu PC y flashear. El firmware arranca, intenta inicializar la pantalla (no falla si no está conectada) y puedes verificar por monitor serial que funciona. Después conectas la pantalla y reconectas el USB.
+## Contributing
 
-Se recomienda hacerlo en dos pasos:
-1. Solo XIAO por USB → flashear y verificar por serial
-2. XIAO + pantalla cableada → reconectar USB y ver el dashboard
+This project is built with [Kiro](https://kiro.dev) AI-powered IDE. Contributions welcome — open an issue or PR.
 
-### ¿Cómo se alimenta la pantalla durante desarrollo?
+## License
 
-El cable USB-C de tu PC alimenta el XIAO con 5V. El pin 5V del XIAO saca esos 5V directamente (passthrough del USB) y alimenta la pantalla. Consumo total ~300 mA, dentro del límite de un puerto USB estándar. No necesitas fuente externa mientras desarrollas.
+MIT
 
-### ¿Qué es el SimulationEngine y para qué sirve?
+## Credits
 
-Es un "modo demo" que simula lo que haría FPVGate. Genera 6 pilotos ficticios con nombres predefinidos (RAZOR, VIPER, GHOST, etc.), cada uno con velocidad base diferente. Cada 2-4 segundos un piloto completa una vuelta con un tiempo aleatorio entre 10 y 20 segundos. Las posiciones se recalculan dinámicamente. Esto permite probar y demostrar el display sin necesitar el hardware de laptimer.
+Created by **Verma FPV** (Jose Vega)
 
-### ¿Este display necesita el firmware de FPVGate?
+- GitHub: [@jsvegam](https://github.com/jsvegam)
+- Instagram: [@VemarFPV](https://instagram.com/VemarFPV)
+- Email: jsvegam@gmail.com
 
-No. Son dos dispositivos completamente independientes, cada uno con su propio XIAO ESP32-S3 y su propio firmware:
-
-- **XIAO #1 (FPVGate)**: tiene el sensor RX5808, detecta drones por RSSI, mide tiempos. Se flashea con el firmware del [repo de FPVGate](https://github.com/LouisHitchcock/FPVGate).
-- **XIAO #2 (este proyecto)**: tiene la pantalla ILI9488, muestra el dashboard. Se flashea con el firmware de este repo.
-
-En la Fase 2, el display se conecta al WiFi que crea FPVGate y consume los datos de carrera. No necesitas tocar el código de FPVGate.
-
-### ¿Cómo funciona FPVGate en modo multipiloto?
-
-FPVGate usa un solo receptor RX5808 que escanea múltiples frecuencias. Cada piloto vuela en un canal diferente de RaceBand (R1=5658MHz, R2=5695MHz, etc., hasta 8 canales). Los pilotos se configuran desde la interfaz web de FPVGate donde asignas nombre, canal y umbral RSSI. Cuando un dron pasa por la gate, FPVGate detecta el pico RSSI en la frecuencia de ese piloto y registra la vuelta.
-
-### ¿Cómo se registran los nombres de pilotos?
-
-En la Fase 1 (actual), los nombres son predefinidos en el SimulationEngine. En la Fase 2 (integración real), los nombres vendrán de la configuración que hagas en la interfaz web de FPVGate. Tu display solo los recibe y muestra — no necesita saber nada de frecuencias ni configuración de pilotos.
-
-### ¿Puedo usar este display sin FPVGate?
-
-Sí. En la Fase 1 funciona completamente standalone con datos simulados. Es útil como demo, para desarrollo, o como base para integrar con cualquier otro sistema de laptimer que exponga datos por WiFi.
-
-## Licencia
-
-Por definir.
+Built for the FPV racing community. Questions, ideas, or want to collaborate? Open an issue or reach out directly.
