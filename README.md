@@ -199,7 +199,10 @@ This project is built with [Kiro](https://kiro.dev) AI-powered IDE. Contribution
 
 ## License
 
-MIT
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
+You are free to use, modify, and distribute this code. If you distribute modified versions,
+you must also make your source code available under the same license.
 
 ## Credits
 
